@@ -76,6 +76,17 @@
       'permission_callback' => '__return_true'
     )
   );
+
+  // DELETE
+  register_rest_route(
+    'pottery-forming-tech-api/v1',
+    '/pot/(?P<id>\d+)',
+    array(
+      'methods' => 'DELETE',
+      'callback' => 'pftd_delete_pot',
+      'permission_callback' => '__return_true'
+    )
+  );
  }
 
 function pftd_get_pots() {
@@ -129,6 +140,20 @@ function pftd_update_pot( $request ){
       'catalog_number' => $request['catalog_number'],
       'traces_observed' => $request['traces_observed'],
     ),
+    array(
+      'id' => $id,
+    )
+  );
+  return $results;
+}
+
+function pftd_delete_pot( $request ){
+  $id = $request['id'];
+  global $wpdb;
+  $table_name = $wpdb->prefix . 'pottery_ftd_object';
+
+  $results = $wpdb->delete(
+    $table_name,
     array(
       'id' => $id,
     )
