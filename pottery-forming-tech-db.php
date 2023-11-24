@@ -29,5 +29,28 @@
     dbDelta( $sql );
  }
 
+ add_action( 'rest_api_init', 'pftd_register_routes' );
 
+ function pftd_register_routes() {
+
+  // GET all
+  register_rest_route(
+    'pottery-forming-tech-api/v1',
+    '/pots/',
+    array(
+      'methods' => 'GET',
+      'callback' => 'pftd_get_pots',
+      'permission_callback' => '__return_true'
+    )
+    );
+
+ }
+
+function pftd_get_pots() {
+  global $wpdb;
+  $table_name = $wpdb->prefix . 'pottery_ftd_object';
+
+  $results = $wpdb->get_results( "SELECT * FROM $table_name" );
+  return $results;
+}
 ?>
