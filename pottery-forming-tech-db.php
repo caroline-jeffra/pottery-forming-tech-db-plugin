@@ -54,6 +54,17 @@
       'permission_callback' => '__return_true'
     )
     );
+
+  // POST
+  register_rest_route(
+    'pottery-forming-tech-api/v1',
+    '/pot/',
+    array(
+      'methods' => 'POST',
+      'callback' => 'pftd_create_pot',
+      'permission_callback' => '__return_true'
+    )
+    );
  }
 
 function pftd_get_pots() {
@@ -71,6 +82,24 @@ function pftd_get_pot( $request ){
 
   $results = $wpdb->get_results( "SELECT * FROM $table_name WHERE id = $id" );
 
-  return $results; 
+  return $results;
+}
+
+function pftd_create_pot( $request ){
+  global $wpdb;
+  $table_name = $wpdb->prefix . 'pottery_ftd_object';
+  // create function to sanitize and filter inputs from $request
+
+  $rows = $wpdb->insert(
+    $table_name,
+    array(
+      'pot_type' => $request['pot_type'],
+      'forming_method' => $request['forming_method'],
+      'shape' => $request['shape'],
+      'catalog_number' => $request['catalog_number'],
+      'traces_observed' => $request['traces_observed'],
+    )
+    );
+    return $rows;
 }
 ?>
