@@ -10,8 +10,15 @@
  * Version: 1.0
  */
 
- register_activation_hook( __FILE__, 'pftd_setup_table');
- function pftd_setup_table() {
+ // Hooks
+register_activation_hook(__FILE__, 'pftd_setup_table');
+register_deactivation_hook( __FILE__, 'pftd_drop_table' );
+add_action('rest_api_init', 'pftd_register_routes');
+
+
+// callbacks
+function pftd_setup_table()
+{
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
@@ -25,13 +32,26 @@
     PRIMARY KEY (id)
     )";
 
-    require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-    dbDelta( $sql );
- }
+  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+  dbDelta($sql);
+}
 
- add_action( 'rest_api_init', 'pftd_register_routes' );
+function pftd_drop_table() {
+  // first export table to CSV and write to new file
 
- function pftd_register_routes() {
+
+  // second drop table from database
+  global $wpdb;
+  $table_name = $wpdb->prefix . 'pottery_ftd_object';
+
+  $sql = "DROP TABLE $table_name";
+
+  require_once(ABSPATH . "wp-admin/includes/upgrade.php");
+  dbDelta($sql);
+}
+
+function pftd_register_routes()
+{
 
   // GET all
   register_rest_route(
@@ -87,27 +107,30 @@
       'permission_callback' => '__return_true'
     )
   );
- }
+}
 
-function pftd_get_pots() {
+function pftd_get_pots()
+{
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  $results = $wpdb->get_results( "SELECT * FROM $table_name" );
+  $results = $wpdb->get_results("SELECT * FROM $table_name");
   return $results;
 }
 
-function pftd_get_pot( $request ){
+function pftd_get_pot($request)
+{
   $id = $request['id'];
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  $results = $wpdb->get_results( "SELECT * FROM $table_name WHERE id = $id" );
+  $results = $wpdb->get_results("SELECT * FROM $table_name WHERE id = $id");
 
   return $results;
 }
 
-function pftd_create_pot( $request ){
+function pftd_create_pot($request)
+{
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
   // create function to sanitize and filter inputs from $request
@@ -125,7 +148,8 @@ function pftd_create_pot( $request ){
   return $rows;
 }
 
-function pftd_update_pot( $request ){
+function pftd_update_pot($request)
+{
   $id = $request['id'];
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
@@ -147,7 +171,8 @@ function pftd_update_pot( $request ){
   return $results;
 }
 
-function pftd_delete_pot( $request ){
+function pftd_delete_pot($request)
+{
   $id = $request['id'];
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
@@ -159,5 +184,13 @@ function pftd_delete_pot( $request ){
     )
   );
   return $results;
+}
+
+function csv_export_table($table_name){
+  ob_start();
+  $domain = $_SERVER['SERVER_NAME'];
+  $filename = $domain . '-' . $table_name . time() . '.csv';
+
+
 }
 ?>
