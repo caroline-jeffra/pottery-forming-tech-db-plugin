@@ -195,9 +195,27 @@ function csv_export_table($table_name){
 
   // get table header names
   $sql_headers = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = ' . $table_name;
+  $headers = $wpdb->get_results($sql_headers);
+
+  $header_row = array();
+  foreach ($headers as $header) {
+    $header_row[] = $header;
+  }
 
   // get table data rows
   $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
 
+  $data_rows = array();
+  foreach( $sql_rows as $row ){
+    $row = array();
+    foreach ($row as $item) {
+      $row[] = $item;
+    }
+    $data_rows[] = $row;
+  }
+
+  ob_end_flush();
+
+  die();
 }
 ?>
