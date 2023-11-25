@@ -196,7 +196,6 @@ function csv_export_table($table_name){
   // get table header names
   $sql_headers = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = ' . $table_name;
   $headers = $wpdb->get_results($sql_headers);
-
   $header_row = array();
   foreach ($headers as $header) {
     $header_row[] = $header;
@@ -204,7 +203,6 @@ function csv_export_table($table_name){
 
   // get table data rows
   $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
-
   $data_rows = array();
   foreach( $sql_rows as $row ){
     $row = array();
@@ -212,7 +210,28 @@ function csv_export_table($table_name){
       $row[] = $item;
     }
     $data_rows[] = $row;
-  }
+  };
+
+  $fh = @fopen( 'php://output', 'w' );
+
+  // sql for selecting column data types: build string for fprintf data format parameter
+  $sql_format = "SELECT `DATA_TYPE` FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = " . $table_name;
+  $formats = $wpdb->get_results($sql_format);
+  $table_column_formats = "";
+  $int_types = array('int', 'integer', 'bigint');
+  $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
+  foreach ($formats as $format) {
+    $format = strtolower($format);
+    if (in_array($format, $int_types, true)) {
+      $table_column_formats = $table_column_formats . printf("%b", $format);
+    } elseif ( in_array($format, $dec_types, true )){
+      $table_column_formats = $table_column_formats . printf("%f", $format);
+    } else {
+      $table_column_formats = $table_column_formats . printf("%s", $format);
+    }
+  };
+
+  fprintf( $fh, $table_column_formats );
 
   ob_end_flush();
 
