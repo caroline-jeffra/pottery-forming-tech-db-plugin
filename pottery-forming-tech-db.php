@@ -12,7 +12,7 @@
 
  // Hooks
 register_activation_hook(__FILE__, 'pftd_setup_table');
-register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
+// register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
 add_action('rest_api_init', 'pftd_register_routes');
 
 
@@ -32,9 +32,13 @@ function pftd_setup_table()
     PRIMARY KEY (id)
     )";
 
+  $csv_path = plugin_dir_path( __FILE__ ) . "/sample-data/experimental_pottery.csv";
+  csv_import_table($table_name, $csv_path);
+
   require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
   dbDelta($sql);
 }
+
 
 function pftd_deactivation_routine() {
   global $wpdb;
@@ -42,12 +46,6 @@ function pftd_deactivation_routine() {
 
   // first export table to CSV and write to new file
   csv_export_table($table_name);
-
-  // second drop table from database
-  // $sql = "DROP TABLE $table_name";
-
-  // require_once(ABSPATH . "wp-admin/includes/upgrade.php");
-  // dbDelta($sql);
 }
 
 function pftd_register_routes()
@@ -197,27 +195,9 @@ function csv_export_table($table_name){
   $table_info_results = $wpdb->get_results( $table_info_query );
 
   $header_row = array();
-  // $table_column_formats = "";
-  // $int_types = array('int', 'integer', 'bigint');
-  // $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
   foreach ($table_info_results as $result ){
     array_push($header_row, $result->Field);
-    // $format = strtolower($result->Type);
-    // if (in_array($format, $int_types, true)) {
-    //   $table_column_formats = $table_column_formats . printf("%b", $format);
-    // } elseif ( in_array($format, $dec_types, true )){
-    //   $table_column_formats = $table_column_formats . printf("%f", $format);
-    // } else {
-    //   $table_column_formats = $table_column_formats . printf("%s", $format);
-    // }
   };
-
-  // $sql_headers = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = " . $table_name;
-  // $headers = $wpdb->get_results($sql_headers);
-  // $header_row = array();
-  // foreach ($headers as $header) {
-  //   $header_row[] = $header;
-  // }
 
   $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
   $data_rows = array();
@@ -231,36 +211,27 @@ function csv_export_table($table_name){
 
   $fh = @fopen( 'php://output', 'w' );
 
-  // $sql_format = "SELECT `DATA_TYPE` FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = " . $table_name;
-  // $formats = $wpdb->get_results($sql_format);
-  // $table_column_formats = "";
-  // $int_types = array('int', 'integer', 'bigint');
-  // $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
-  // foreach ($formats as $format) {
-  //   $format = strtolower($format);
-  //   if (in_array($format, $int_types, true)) {
-  //     $table_column_formats = $table_column_formats . printf("%b", $format);
-  //   } elseif ( in_array($format, $dec_types, true )){
-  //     $table_column_formats = $table_column_formats . printf("%f", $format);
-  //   } else {
-  //     $table_column_formats = $table_column_formats . printf("%s", $format);
-  //   }
-  // };
-
   header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
   header( 'Content-Description: File Transfer' );
   header( 'Content-type: text/csv' );
   header( "Content-Disposition: attachment; filename={$filename}" );
   header( 'Expires: 0' );
   header( 'Pragma: public' );
-  fputcsv( $fh, $header_row );
+  fputcsv( $fh, $header_row, ",", "\"" );
   foreach ( $data_rows as $data_row ) {
-    fputcsv( $fh, $data_row );
+    fputcsv( $fh, $data_row, ",", "\"" );
   }
   fclose( $fh );
 
   ob_end_flush();
 
   die();
+}
+
+function csv_import_table($table_name, $csv_path){
+  // open csv
+  // create array of columns
+  // assign each row's items to key-value pairs to build db table row
+  // pftd_create_pot($attributes) for each table row
 }
 ?>
