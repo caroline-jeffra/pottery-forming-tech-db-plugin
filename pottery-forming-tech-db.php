@@ -188,9 +188,16 @@ function pftd_delete_pot($request)
 
 function csv_export_table($table_name){
   ob_start();
+
+  global $wpdb;
   $domain = $_SERVER['SERVER_NAME'];
   $filename = $domain . '-' . $table_name . time() . '.csv';
 
+  // get table header names
+  $sql_headers = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = ' . $table_name;
+
+  // get table data rows
+  $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
 
 }
 ?>
