@@ -12,7 +12,7 @@
 
  // Hooks
 register_activation_hook(__FILE__, 'pftd_setup_table');
-register_deactivation_hook( __FILE__, 'pftd_drop_table' );
+register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
 add_action('rest_api_init', 'pftd_register_routes');
 
 
@@ -36,7 +36,7 @@ function pftd_setup_table()
   dbDelta($sql);
 }
 
-function pftd_drop_table() {
+function pftd_deactivation_routine() {
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
@@ -193,42 +193,60 @@ function csv_export_table($table_name){
   $domain = $_SERVER['SERVER_NAME'];
   $filename = $domain . '-' . $table_name . time() . '.csv';
 
-  $sql_headers = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = ' . $table_name;
-  $headers = $wpdb->get_results($sql_headers);
+  $table_info_query = "SHOW COLUMNS FROM ". DB_NAME .".". $table_name;
+  $table_info_results = $wpdb->get_results( $table_info_query );
+
   $header_row = array();
-  foreach ($headers as $header) {
-    $header_row[] = $header;
-  }
+  // $table_column_formats = "";
+  // $int_types = array('int', 'integer', 'bigint');
+  // $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
+  foreach ($table_info_results as $result ){
+    array_push($header_row, $result->Field);
+    // $format = strtolower($result->Type);
+    // if (in_array($format, $int_types, true)) {
+    //   $table_column_formats = $table_column_formats . printf("%b", $format);
+    // } elseif ( in_array($format, $dec_types, true )){
+    //   $table_column_formats = $table_column_formats . printf("%f", $format);
+    // } else {
+    //   $table_column_formats = $table_column_formats . printf("%s", $format);
+    // }
+  };
+
+  // $sql_headers = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = " . $table_name;
+  // $headers = $wpdb->get_results($sql_headers);
+  // $header_row = array();
+  // foreach ($headers as $header) {
+  //   $header_row[] = $header;
+  // }
 
   $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
   $data_rows = array();
   foreach( $sql_rows as $row ){
-    $row = array();
+    $entry = array();
     foreach ($row as $item) {
-      $row[] = $item;
+      $entry[] = $item;
     }
-    $data_rows[] = $row;
+    $data_rows[] = $entry;
   };
 
   $fh = @fopen( 'php://output', 'w' );
 
-  $sql_format = "SELECT `DATA_TYPE` FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = " . $table_name;
-  $formats = $wpdb->get_results($sql_format);
-  $table_column_formats = "";
-  $int_types = array('int', 'integer', 'bigint');
-  $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
-  foreach ($formats as $format) {
-    $format = strtolower($format);
-    if (in_array($format, $int_types, true)) {
-      $table_column_formats = $table_column_formats . printf("%b", $format);
-    } elseif ( in_array($format, $dec_types, true )){
-      $table_column_formats = $table_column_formats . printf("%f", $format);
-    } else {
-      $table_column_formats = $table_column_formats . printf("%s", $format);
-    }
-  };
+  // $sql_format = "SELECT `DATA_TYPE` FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = " . $table_name;
+  // $formats = $wpdb->get_results($sql_format);
+  // $table_column_formats = "";
+  // $int_types = array('int', 'integer', 'bigint');
+  // $dec_types = array('float', 'double', 'double precision', 'decimal', 'dec');
+  // foreach ($formats as $format) {
+  //   $format = strtolower($format);
+  //   if (in_array($format, $int_types, true)) {
+  //     $table_column_formats = $table_column_formats . printf("%b", $format);
+  //   } elseif ( in_array($format, $dec_types, true )){
+  //     $table_column_formats = $table_column_formats . printf("%f", $format);
+  //   } else {
+  //     $table_column_formats = $table_column_formats . printf("%s", $format);
+  //   }
+  // };
 
-  fprintf( $fh, $table_column_formats );
   header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
   header( 'Content-Description: File Transfer' );
   header( 'Content-type: text/csv' );
