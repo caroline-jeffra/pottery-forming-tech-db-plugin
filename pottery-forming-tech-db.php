@@ -37,17 +37,17 @@ function pftd_setup_table()
 }
 
 function pftd_drop_table() {
-  // first export table to CSV and write to new file
-
-
-  // second drop table from database
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  $sql = "DROP TABLE $table_name";
+  // first export table to CSV and write to new file
+  csv_export_table($table_name);
 
-  require_once(ABSPATH . "wp-admin/includes/upgrade.php");
-  dbDelta($sql);
+  // second drop table from database
+  // $sql = "DROP TABLE $table_name";
+
+  // require_once(ABSPATH . "wp-admin/includes/upgrade.php");
+  // dbDelta($sql);
 }
 
 function pftd_register_routes()
@@ -193,7 +193,6 @@ function csv_export_table($table_name){
   $domain = $_SERVER['SERVER_NAME'];
   $filename = $domain . '-' . $table_name . time() . '.csv';
 
-  // get table header names
   $sql_headers = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = ' . $table_name;
   $headers = $wpdb->get_results($sql_headers);
   $header_row = array();
@@ -201,7 +200,6 @@ function csv_export_table($table_name){
     $header_row[] = $header;
   }
 
-  // get table data rows
   $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
   $data_rows = array();
   foreach( $sql_rows as $row ){
@@ -214,7 +212,6 @@ function csv_export_table($table_name){
 
   $fh = @fopen( 'php://output', 'w' );
 
-  // sql for selecting column data types: build string for fprintf data format parameter
   $sql_format = "SELECT `DATA_TYPE` FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ' . $wpdb->dbname . ' AND TABLE_NAME = " . $table_name;
   $formats = $wpdb->get_results($sql_format);
   $table_column_formats = "";
@@ -232,6 +229,17 @@ function csv_export_table($table_name){
   };
 
   fprintf( $fh, $table_column_formats );
+  header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
+  header( 'Content-Description: File Transfer' );
+  header( 'Content-type: text/csv' );
+  header( "Content-Disposition: attachment; filename={$filename}" );
+  header( 'Expires: 0' );
+  header( 'Pragma: public' );
+  fputcsv( $fh, $header_row );
+  foreach ( $data_rows as $data_row ) {
+    fputcsv( $fh, $data_row );
+  }
+  fclose( $fh );
 
   ob_end_flush();
 
