@@ -117,7 +117,11 @@ function pftd_get_pots()
 
 function pftd_get_pot($request)
 {
-  $id = $request['id'];
+  $id = (int) $request['id'];
+  if ($id === 0){
+    return wp_send_json( array( 'result' => 'Invalid ID passed' ) );
+  }
+
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
@@ -128,6 +132,9 @@ function pftd_get_pot($request)
 
 function pftd_create_pot($request)
 {
+  if ( ! current_user_can( 'publish_posts' ) ) {
+    return wp_send_json( array( 'result' => 'Authentication error' ) );
+  }
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
   // create function to sanitize and filter inputs from $request
@@ -135,11 +142,11 @@ function pftd_create_pot($request)
   $rows = $wpdb->insert(
     $table_name,
     array(
-      'pot_type' => $request['pot_type'],
-      'forming_method' => $request['forming_method'],
-      'shape' => $request['shape'],
-      'catalog_number' => $request['catalog_number'],
-      'traces_observed' => $request['traces_observed'],
+      'pot_type' => sanitize_text_field($request['pot_type']),
+      'forming_method' => sanitize_text_field($request['forming_method']),
+      'shape' => sanitize_text_field($request['shape']),
+      'catalog_number' => sanitize_text_field($request['catalog_number']),
+      'traces_observed' => sanitize_text_field($request['traces_observed']),
     )
   );
   return $rows;
@@ -147,19 +154,25 @@ function pftd_create_pot($request)
 
 function pftd_update_pot($request)
 {
-  $id = $request['id'];
+  if ( ! current_user_can( 'edit_private_posts' ) ) {
+    return wp_send_json( array( 'result' => 'Authentication error' ) );
+  }
+  $id = (int) $request['id'];
+  if ($id === 0){
+    return wp_send_json( array( 'result' => 'Invalid ID passed' ) );
+  }
+
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
-  // sanitize and filter inputs from $request
   // currently overwriting any absent values with empty string
   $results = $wpdb->update(
     $table_name,
     array(
-      'pot_type' => $request['pot_type'],
-      'forming_method' => $request['forming_method'],
-      'shape' => $request['shape'],
-      'catalog_number' => $request['catalog_number'],
-      'traces_observed' => $request['traces_observed'],
+      'pot_type' => sanitize_text_field($request['pot_type']),
+      'forming_method' => sanitize_text_field($request['forming_method']),
+      'shape' => sanitize_text_field($request['shape']),
+      'catalog_number' => sanitize_text_field($request['catalog_number']),
+      'traces_observed' => sanitize_text_field($request['traces_observed']),
     ),
     array(
       'id' => $id,
@@ -170,7 +183,14 @@ function pftd_update_pot($request)
 
 function pftd_delete_pot($request)
 {
-  $id = $request['id'];
+  if ( ! current_user_can( 'delete_private_posts' ) ) {
+    return wp_send_json( array( 'result' => 'Authentication error' ) );
+  }
+  $id = (int) $request['id'];
+  if ($id === 0){
+    return wp_send_json( array( 'result' => 'Invalid ID passed' ) );
+  }
+
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
