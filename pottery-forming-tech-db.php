@@ -12,7 +12,7 @@
 
  // Hooks
 register_activation_hook(__FILE__, 'pftd_setup_table');
-register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
+// register_deactivation_hook( __FILE__, 'pftd_export_csv' );
 add_action('rest_api_init', 'pftd_register_routes');
 
 
@@ -33,17 +33,16 @@ function pftd_setup_table()
     )";
 
   $csv_path = (plugin_dir_path( __FILE__ )) . "\\sample-data\\experimental_pottery.csv";
-  csv_import_table($table_name, $csv_path);
+  pftd_import_csv($table_name, $csv_path);
 
   require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
   dbDelta($sql);
 }
 
-function pftd_deactivation_routine() {
+function pftd_export_csv() {
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  // first export table to CSV and write to new file
   csv_export_table($table_name);
 }
 
@@ -247,7 +246,7 @@ function csv_export_table($table_name){
   die();
 }
 
-function csv_import_table($table_name, $csv_path){
+function pftd_import_csv($table_name, $csv_path){
   if (($open = fopen($csv_path, 'r')) !== false) {
     $headers = fgetcsv($open, 1000, ',');
     while (($data = fgetcsv($open, 1000, ',')) !== false) {
