@@ -12,7 +12,7 @@
 
  // Hooks
 register_activation_hook(__FILE__, 'pftd_setup_table');
-// register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
+register_deactivation_hook( __FILE__, 'pftd_deactivation_routine' );
 add_action('rest_api_init', 'pftd_register_routes');
 
 
@@ -32,13 +32,12 @@ function pftd_setup_table()
     PRIMARY KEY (id)
     )";
 
-  $csv_path = plugin_dir_path( __FILE__ ) . "/sample-data/experimental_pottery.csv";
+  $csv_path = (plugin_dir_path( __FILE__ )) . "\\sample-data\\experimental_pottery.csv";
   csv_import_table($table_name, $csv_path);
 
   require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
   dbDelta($sql);
 }
-
 
 function pftd_deactivation_routine() {
   global $wpdb;
@@ -229,9 +228,22 @@ function csv_export_table($table_name){
 }
 
 function csv_import_table($table_name, $csv_path){
-  // open csv
-  // create array of columns
-  // assign each row's items to key-value pairs to build db table row
-  // pftd_create_pot($attributes) for each table row
+  if (($open = fopen($csv_path, 'r')) !== false) {
+    $headers = fgetcsv($open, 1000, ',');
+    while (($data = fgetcsv($open, 1000, ',')) !== false) {
+      $keyed_data = array_combine($headers, $data);
+      $db_entry = array(
+        'pot_type' => $keyed_data['pot_type'],
+        'forming_method' => $keyed_data['forming_method'],
+        'shape' => $keyed_data['shape'],
+        'catalog_number' => $keyed_data['catalog_number'],
+        'traces_observed' => $keyed_data['traces_observed'],
+      );
+      pftd_create_pot($db_entry);
+    }
+    fclose($open);
+  }
 }
+
+
 ?>
