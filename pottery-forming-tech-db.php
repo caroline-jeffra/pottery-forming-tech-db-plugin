@@ -11,42 +11,104 @@
  */
 
  // Hooks
-register_activation_hook(__FILE__, 'pftd_setup_table');
-// register_deactivation_hook( __FILE__, 'pftd_export_csv' );
-add_action('rest_api_init', 'pftd_register_routes');
+register_activation_hook(__FILE__, array('PotteryDataManager', 'setup_table'));
+register_deactivation_hook( __FILE__, array('PotteryDataManager', 'export_csv' ));
+add_action('rest_api_init', array('PotteryApiManager', 'register_routes'));
+
+class PotteryDataManager {
+
+  static function import_csv($table_name, $csv_path){
+    if (($open = fopen($csv_path, 'r')) !== false) {
+      $headers = fgetcsv($open, 1000, ',');
+      while (($data = fgetcsv($open, 1000, ',')) !== false) {
+        $keyed_data = array_combine($headers, $data);
+        $db_entry = array(
+          'pot_type' => $keyed_data['pot_type'],
+          'forming_method' => $keyed_data['forming_method'],
+          'shape' => $keyed_data['shape'],
+          'catalog_number' => $keyed_data['catalog_number'],
+          'traces_observed' => $keyed_data['traces_observed'],
+        );
+        PotteryApiManager::create_pot($db_entry);
+      }
+      fclose($open);
+    }
+  }
+  static function setup_table()
+  {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'pottery_ftd_object';
+
+    $sql = "CREATE TABLE $table_name (
+      id mediumint(9) NOT NULL AUTO_INCREMENT,
+      pot_type varchar (20) NOT NULL,
+      forming_method mediumint (9) NOT NULL,
+      shape varchar (100) NOT NULL,
+      catalog_number varchar (100) NOT NULL,
+      traces_observed varchar (255) NOT NULL,
+      PRIMARY KEY (id)
+      )";
+
+    $csv_path = (plugin_dir_path( __FILE__ )) . "\\sample-data\\experimental_pottery.csv";
+    PotteryDataManager::import_csv($table_name, $csv_path);
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+  }
 
 
-// callbacks
-function pftd_setup_table()
-{
-  global $wpdb;
-  $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  $sql = "CREATE TABLE $table_name (
-    id mediumint(9) NOT NULL AUTO_INCREMENT,
-    pot_type varchar (20) NOT NULL,
-    forming_method mediumint (9) NOT NULL,
-    shape varchar (100) NOT NULL,
-    catalog_number varchar (100) NOT NULL,
-    traces_observed varchar (255) NOT NULL,
-    PRIMARY KEY (id)
-    )";
+  static function export_csv() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'pottery_ftd_object';
 
-  $csv_path = (plugin_dir_path( __FILE__ )) . "\\sample-data\\experimental_pottery.csv";
-  pftd_import_csv($table_name, $csv_path);
+    ob_start();
 
-  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-  dbDelta($sql);
+    $domain = $_SERVER['SERVER_NAME'];
+    $filename = $domain . '-' . $table_name . time() . '.csv';
+
+    $table_info_query = "SHOW COLUMNS FROM ". DB_NAME .".". $table_name;
+    $table_info_results = $wpdb->get_results( $table_info_query );
+
+    $header_row = array();
+    foreach ($table_info_results as $result ){
+      array_push($header_row, $result->Field);
+    };
+
+    $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
+    $data_rows = array();
+    foreach( $sql_rows as $row ){
+      $entry = array();
+      foreach ($row as $item) {
+        $entry[] = $item;
+      }
+      $data_rows[] = $entry;
+    };
+
+    $fh = @fopen( 'php://output', 'w' );
+
+    header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
+    header( 'Content-Description: File Transfer' );
+    header( 'Content-type: text/csv' );
+    header( "Content-Disposition: attachment; filename={$filename}" );
+    header( 'Expires: 0' );
+    header( 'Pragma: public' );
+    fputcsv( $fh, $header_row, ",", "\"" );
+    foreach ( $data_rows as $data_row ) {
+      fputcsv( $fh, $data_row, ",", "\"" );
+    }
+    fclose( $fh );
+
+    ob_end_flush();
+
+    die();
+  }
 }
 
-function pftd_export_csv() {
-  global $wpdb;
-  $table_name = $wpdb->prefix . 'pottery_ftd_object';
+class PotteryApiManager {
 
-  csv_export_table($table_name);
-}
 
-function pftd_register_routes()
+static function register_routes()
 {
 
   // GET all
@@ -55,7 +117,7 @@ function pftd_register_routes()
     '/pots/',
     array(
       'methods' => 'GET',
-      'callback' => 'pftd_get_pots',
+      'callback' => array('PotteryApiManager', 'get_pots'),
       'permission_callback' => '__return_true'
     )
   );
@@ -66,7 +128,7 @@ function pftd_register_routes()
     '/pot/(?P<id>\d+)',
     array(
       'methods' => 'GET',
-      'callback' => 'pftd_get_pot',
+      'callback' => array('PotteryApiManager', 'get_pot'),
       'permission_callback' => '__return_true'
     )
   );
@@ -77,7 +139,7 @@ function pftd_register_routes()
     '/pot/',
     array(
       'methods' => 'POST',
-      'callback' => 'pftd_create_pot',
+      'callback' => array('PotteryApiManager', 'create_pot'),
       'permission_callback' => '__return_true'
     )
   );
@@ -88,7 +150,7 @@ function pftd_register_routes()
     '/pot/(?P<id>\d+)',
     array(
       'methods' => 'PATCH',
-      'callback' => 'pftd_update_pot',
+      'callback' => array('PotteryApiManager', 'update_pot'),
       'permission_callback' => '__return_true'
     )
   );
@@ -99,13 +161,13 @@ function pftd_register_routes()
     '/pot/(?P<id>\d+)',
     array(
       'methods' => 'DELETE',
-      'callback' => 'pftd_delete_pot',
+      'callback' => array('PotteryApiManager', 'delete_pot'),
       'permission_callback' => '__return_true'
     )
   );
 }
 
-function pftd_get_pots()
+static function get_pots()
 {
   global $wpdb;
   $table_name = $wpdb->prefix . 'pottery_ftd_object';
@@ -114,7 +176,7 @@ function pftd_get_pots()
   return $results;
 }
 
-function pftd_get_pot($request)
+static function get_pot($request)
 {
   $id = (int) $request['id'];
   if ($id === 0){
@@ -129,7 +191,7 @@ function pftd_get_pot($request)
   return $results;
 }
 
-function pftd_create_pot($request)
+static function create_pot($request)
 {
   if ( ! current_user_can( 'publish_posts' ) ) {
     return wp_send_json( array( 'result' => 'Authentication error' ) );
@@ -151,7 +213,7 @@ function pftd_create_pot($request)
   return $rows;
 }
 
-function pftd_update_pot($request)
+static function update_pot($request)
 {
   if ( ! current_user_can( 'edit_private_posts' ) ) {
     return wp_send_json( array( 'result' => 'Authentication error' ) );
@@ -180,7 +242,7 @@ function pftd_update_pot($request)
   return $results;
 }
 
-function pftd_delete_pot($request)
+static function delete_pot($request)
 {
   if ( ! current_user_can( 'delete_private_posts' ) ) {
     return wp_send_json( array( 'result' => 'Authentication error' ) );
@@ -202,66 +264,6 @@ function pftd_delete_pot($request)
   return $results;
 }
 
-function csv_export_table($table_name){
-  ob_start();
-
-  global $wpdb;
-  $domain = $_SERVER['SERVER_NAME'];
-  $filename = $domain . '-' . $table_name . time() . '.csv';
-
-  $table_info_query = "SHOW COLUMNS FROM ". DB_NAME .".". $table_name;
-  $table_info_results = $wpdb->get_results( $table_info_query );
-
-  $header_row = array();
-  foreach ($table_info_results as $result ){
-    array_push($header_row, $result->Field);
-  };
-
-  $sql_rows = $wpdb->get_results("SELECT * FROM $table_name");
-  $data_rows = array();
-  foreach( $sql_rows as $row ){
-    $entry = array();
-    foreach ($row as $item) {
-      $entry[] = $item;
-    }
-    $data_rows[] = $entry;
-  };
-
-  $fh = @fopen( 'php://output', 'w' );
-
-  header( 'Cache-Control: must-revalidate, post-check=0, pre-check=0' );
-  header( 'Content-Description: File Transfer' );
-  header( 'Content-type: text/csv' );
-  header( "Content-Disposition: attachment; filename={$filename}" );
-  header( 'Expires: 0' );
-  header( 'Pragma: public' );
-  fputcsv( $fh, $header_row, ",", "\"" );
-  foreach ( $data_rows as $data_row ) {
-    fputcsv( $fh, $data_row, ",", "\"" );
-  }
-  fclose( $fh );
-
-  ob_end_flush();
-
-  die();
-}
-
-function pftd_import_csv($table_name, $csv_path){
-  if (($open = fopen($csv_path, 'r')) !== false) {
-    $headers = fgetcsv($open, 1000, ',');
-    while (($data = fgetcsv($open, 1000, ',')) !== false) {
-      $keyed_data = array_combine($headers, $data);
-      $db_entry = array(
-        'pot_type' => $keyed_data['pot_type'],
-        'forming_method' => $keyed_data['forming_method'],
-        'shape' => $keyed_data['shape'],
-        'catalog_number' => $keyed_data['catalog_number'],
-        'traces_observed' => $keyed_data['traces_observed'],
-      );
-      pftd_create_pot($db_entry);
-    }
-    fclose($open);
-  }
 }
 
 
