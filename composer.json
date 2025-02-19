@@ -1,0 +1,21 @@
+{
+    "name": "cjeffra/pottery-forming-tech-db-plugin",
+    "description": "Create and manage a database and associated api of archaeological pottery technology data",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": "^8.0"
+    },
+    "license": "GPL version 2 or later",
+    "autoload": {
+        "psr-4": {
+            "Cjeffra\\PotteryFormingTechManager\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "c.jeffra",
+            "email": "caroline.jeffra@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev"
+}
